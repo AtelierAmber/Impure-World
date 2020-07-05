@@ -5,12 +5,15 @@ import org.apache.logging.log4j.Logger;
 
 import com.github.atelieramber.impureworld.init.IWBlockRegistry;
 import com.github.atelieramber.impureworld.init.IWItemRegistry;
-import com.github.atelieramber.impureworld.util.Registration;
+import com.github.atelieramber.impureworld.lists.BlockList;
 
 import net.minecraft.block.Block;
+import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.RenderTypeLookup;
 import net.minecraft.item.Item;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegistryEvent;
+import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
@@ -30,11 +33,14 @@ public class ImpureWorld {
 	protected static final Logger LOGGER = LogManager.getLogger(MODID);
 
 	public ImpureWorld() {
-		FMLJavaModLoadingContext.get().getModEventBus().addListener(this::setup);
-		FMLJavaModLoadingContext.get().getModEventBus().addListener(this::enqueueIMC);
-		FMLJavaModLoadingContext.get().getModEventBus().addListener(this::processIMC);
-		FMLJavaModLoadingContext.get().getModEventBus().addListener(this::clientSetup);
-
+		final IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
+		modEventBus.addListener(this::setup);
+		modEventBus.addListener(this::enqueueIMC);
+		modEventBus.addListener(this::processIMC);
+		modEventBus.addListener(this::clientSetup);
+		
+		IWBlockRegistry.registerBlockTileEntities(modEventBus);
+		
 		MinecraftForge.EVENT_BUS.register(this);
 	}
 
@@ -51,7 +57,7 @@ public class ImpureWorld {
 	}
 
 	private void clientSetup(final FMLClientSetupEvent event) {
-
+		RenderTypeLookup.setRenderLayer(BlockList.polluted_air, RenderType.getTranslucent());
 	}
 
 	@SubscribeEvent
@@ -63,7 +69,7 @@ public class ImpureWorld {
 	public static void registerBlocks(RegistryEvent.Register<Block> event) {
 		IWBlockRegistry.registerBlocks(event);
 	}
-
+	
 	@SubscribeEvent
 	public static void registerItems(RegistryEvent.Register<Item> event) {
 		IWItemRegistry.register(event);

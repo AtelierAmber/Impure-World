@@ -1,7 +1,9 @@
 package com.github.atelieramber.impureworld.init;
 
 import java.util.ArrayList;
+import java.util.List;
 
+import com.github.atelieramber.impureworld.items.AirQualityMeter;
 import com.github.atelieramber.impureworld.lists.ItemList;
 import com.github.atelieramber.impureworld.util.Registration;
 
@@ -12,7 +14,7 @@ import net.minecraftforge.client.event.ColorHandlerEvent;
 import net.minecraftforge.event.RegistryEvent;
 
 public class IWItemRegistry {
-	private static ArrayList<Item> items = new ArrayList<Item>();
+	private static List<Item> items = new ArrayList<Item>();
 
 	private static void registerItem(Item item, String registry, ItemGroup group) {
 		items.add(item = new Item(new Item.Properties().group(group)).setRegistryName(Registration.location(registry)));
@@ -24,7 +26,9 @@ public class IWItemRegistry {
 	}
 
 	public static void register(RegistryEvent.Register<Item> event) {
-				
+
+		registerItem(ItemList.air_quality_meter, new AirQualityMeter(AirQualityMeter.properties(ItemGroup.TOOLS)), "air_quality_meter");
+
 		for (Item item : items) {
 			event.getRegistry().register(item);
 		}
