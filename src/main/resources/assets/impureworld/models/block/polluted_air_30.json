@@ -1,0 +1,7 @@
+{
+   "parent": "impureworld:block/polluted_air",
+   "textures": {
+       "transparency": "impureworld:block/polluted_air_30"
+   }
+}
+   

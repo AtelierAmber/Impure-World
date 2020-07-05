@@ -1,5 +1,49 @@
 {
-    "variants": {
-        "": {"model": "impureworld:block/polluted_air" }
-    }
+    "multipart": [
+        {   "when": {"impurity":0},
+            "apply": [
+                { "model": "impureworld:block/polluted_air_0" }
+            ]
+        },{   "when": {"impurity":1},
+            "apply": [
+                { "model": "impureworld:block/polluted_air_10" }
+            ]
+        },{   "when": {"impurity":2},
+            "apply": [
+                { "model": "impureworld:block/polluted_air_20" }
+            ]
+        },{   "when": {"impurity":3},
+            "apply": [
+                { "model": "impureworld:block/polluted_air_30" }
+            ]
+        },{   "when": {"impurity":4},
+            "apply": [
+                { "model": "impureworld:block/polluted_air_40" }
+            ]
+        },{   "when": {"impurity":5},
+            "apply": [
+                { "model": "impureworld:block/polluted_air_50" }
+            ]
+        },{   "when": {"impurity":6},
+            "apply": [
+                { "model": "impureworld:block/polluted_air_60" }
+            ]
+        },{   "when": {"impurity":7},
+            "apply": [
+                { "model": "impureworld:block/polluted_air_70" }
+            ]
+        },{   "when": {"impurity":8},
+            "apply": [
+                { "model": "impureworld:block/polluted_air_80" }
+            ]
+        },{   "when": {"impurity":9},
+            "apply": [
+                { "model": "impureworld:block/polluted_air_90" }
+            ]
+        },{   "when": {"impurity":10},
+            "apply": [
+                { "model": "impureworld:block/polluted_air_100" }
+            ]
+        }
+    ]
 }

@@ -27,14 +27,18 @@ public class AirQualityMeter extends Item {
 		if (state.getMaterial() == ModMaterials.POLLUTED_AIR) {
 			TileEntityPollutedAir TE = (TileEntityPollutedAir) worldIn.getTileEntity(playerIn.getPosition().up());
 			if (TE != null) {
-				ITextComponent text = new StringTextComponent(
-						((worldIn.isRemote) ? "--Remote--\n" : "--Client--\n") + TE.toString());
-				playerIn.sendMessage(text);
+				if(!playerIn.isSneaking()) {
+					ITextComponent text = new StringTextComponent(
+							((worldIn.isRemote) ? "--Remote--\n" : "--Client--\n") + TE.toString());
+					playerIn.sendMessage(text);
+				}else {
+					TE.setComposition(1.0/3.0, 1.0/3.0, 1.0/3.0);
+				}
 			}
 		}
 		return new ActionResult<ItemStack>(ActionResultType.SUCCESS, playerIn.getHeldItem(handIn));
 	}
-
+	
 	public static Item.Properties properties(ItemGroup group) {
 		return new Item.Properties().group(group).maxStackSize(1);
 	}

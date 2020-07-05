@@ -9,9 +9,11 @@ import java.util.Random;
 
 import org.apache.commons.lang3.tuple.Pair;
 
+import com.github.atelieramber.impureworld.blocks.PollutedAir;
 import com.github.atelieramber.impureworld.lists.TileEntityTypes;
 import com.github.atelieramber.impureworld.materials.ModMaterials;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.math.DoubleMath;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
@@ -145,6 +147,8 @@ public class TileEntityPollutedAir extends TileEntity implements ITickableTileEn
 	private AirComposition airComposition = new AirComposition(0.0, 0.0, 0.0);
 
 	private boolean neighborUpdated = true;
+	
+	private boolean initialized = true;
 
 	private int spreadFrequency = 0;
 	private int spreadTimer = 0;
@@ -156,7 +160,7 @@ public class TileEntityPollutedAir extends TileEntity implements ITickableTileEn
 	public TileEntityPollutedAir(final TileEntityType<?> tileEntityTypeIn) {
 		this(tileEntityTypeIn, 0.0, 0.0, 0.0);
 	}
-
+	
 	public TileEntityPollutedAir(final TileEntityType<?> tileEntityTypeIn, AirComposition composition) {
 		this(tileEntityTypeIn, composition.carbon, composition.carbon, composition.carbon);
 	}
@@ -164,10 +168,11 @@ public class TileEntityPollutedAir extends TileEntity implements ITickableTileEn
 	public TileEntityPollutedAir(final TileEntityType<?> tileEntityTypeIn, double carbon, double sulfur, double particulate) {
 		super(tileEntityTypeIn);
 		airComposition.setComposition(carbon, sulfur, particulate);
+		initialized = false;
 	}
 	
-	public void setComposition(double d, double e, double f) {
-		airComposition.setComposition(d, e, f);
+	public void setComposition(double carbon, double sulfur, double particulate) {
+		airComposition.setComposition(carbon, sulfur, particulate);
 	}
 
 	protected static final List<Direction> SIDES = Collections.unmodifiableList(Arrays.asList(Direction.WEST,
@@ -184,7 +189,7 @@ public class TileEntityPollutedAir extends TileEntity implements ITickableTileEn
 	}
 
 	protected static final Map<Block, Spreadability> SPREADABLE_BLOCKS = ImmutableMap.of(Blocks.AIR,
-			Spreadability.REPLACE);
+			Spreadability.REPLACE, Blocks.CAVE_AIR, Spreadability.REPLACE);
 
 	public void onReplaced(World worldIn, BlockState oldState, BlockState newState) {
 		if (newState.getMaterial() != Material.AIR || newState.getMaterial() != Material.GLASS) {
@@ -194,6 +199,10 @@ public class TileEntityPollutedAir extends TileEntity implements ITickableTileEn
 
 	@Override
 	public void tick() {
+		if(!initialized) {
+			init();
+			initialized = true;
+		}
 		if (!world.isAreaLoaded(pos, 2))
 			return;
 		++spreadTimer;
@@ -201,8 +210,8 @@ public class TileEntityPollutedAir extends TileEntity implements ITickableTileEn
 			if (neighborUpdated) {
 				List<Pair<Direction, Spreadability>> spreadDirections = getSpreadDirs();
 				if (spreadDirections.size() > 0) {
-					this.airComposition.scale(spreadToSides(spreadDirections));
-					markDirty();
+					float scale = spreadToSides(spreadDirections);
+					this.airComposition.scale(scale);
 					world.notifyBlockUpdate(pos, getBlockState(), world.getBlockState(pos), 3);
 				}
 
@@ -210,8 +219,14 @@ public class TileEntityPollutedAir extends TileEntity implements ITickableTileEn
 			}
 			/* Composition update */
 			updateComposition();
+			markDirty();
+			((PollutedAir)(getBlockState().getBlock())).updateImpurity(world, pos, getBlockState(), getImpurity());
 			spreadTimer = 0;
 		}
+	}
+	
+	private void init() {
+		((PollutedAir)(getBlockState().getBlock())).updateImpurity(world, pos, getBlockState(), getImpurity());		
 	}
 
 	private int getSpreadFrequency() {
@@ -267,6 +282,7 @@ public class TileEntityPollutedAir extends TileEntity implements ITickableTileEn
 		}
 	}
 
+	//TODO: Cache spread directions
 	private List<Pair<Direction, Spreadability>> getSpreadDirs() {
 		List<Pair<Direction, Spreadability>> spreadDirections = new ArrayList<Pair<Direction, Spreadability>>();
 		for (int i = 0; i < SIDES.size(); ++i) {
@@ -335,6 +351,9 @@ public class TileEntityPollutedAir extends TileEntity implements ITickableTileEn
 
 	public float getPurity() {
 		return airComposition.purity();
+	}
+	public float getImpurity() {
+		return 1.0f-airComposition.purity();
 	}
 
 	private Spreadability canSpreadTo(BlockPos blockPos) {

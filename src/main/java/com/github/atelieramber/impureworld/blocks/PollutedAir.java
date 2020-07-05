@@ -1,7 +1,5 @@
 package com.github.atelieramber.impureworld.blocks;
 
-import java.util.List;
-
 import com.github.atelieramber.impureworld.blocks.tileentities.TileEntityPollutedAir;
 import com.github.atelieramber.impureworld.lists.TileEntityTypes;
 import com.github.atelieramber.impureworld.materials.ModMaterials;
@@ -13,7 +11,8 @@ import net.minecraft.block.SoundType;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.fluid.IFluidState;
-import net.minecraft.item.ItemStack;
+import net.minecraft.state.IntegerProperty;
+import net.minecraft.state.StateContainer;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.Direction;
 import net.minecraft.util.Rotation;
@@ -24,14 +23,20 @@ import net.minecraft.util.math.shapes.VoxelShapes;
 import net.minecraft.world.IBlockReader;
 import net.minecraft.world.IWorld;
 import net.minecraft.world.World;
-import net.minecraft.world.storage.loot.LootContext.Builder;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 
 public class PollutedAir extends Block {
 
+	public static final IntegerProperty IMPURITY = IntegerProperty.create("impurity", 0, 10);
+
 	public PollutedAir(Properties properties) {
 		super(properties);
+		this.setDefaultState(getDefaultState().with(getImpurityProperty(), Integer.valueOf(5)));
+	}
+
+	public IntegerProperty getImpurityProperty() {
+		return IMPURITY;
 	}
 
 	/* Reference For Later *//*
@@ -42,6 +47,24 @@ public class PollutedAir extends Block {
 								 * 
 								 * hardness cap pressure to prevent filling an area of pollution
 								 */
+
+	protected int getImpurity(BlockState state) {
+		return state.get(this.getImpurityProperty());
+	}
+
+	protected BlockState withImpurity(int impurity) {
+		return this.getDefaultState().with(this.getImpurityProperty(), Integer.valueOf(impurity));
+	}
+
+	public void updateImpurity(World world, BlockPos pos, BlockState state, float impurity) {
+		int oldImpurity = getImpurity(state);
+		int newImpurity = Math.round(impurity * 10.0f);
+		if (oldImpurity != newImpurity && newImpurity < 11) {
+			System.out.println("Updated Impurity: " + impurity + ":" + newImpurity);
+			world.setBlockState(pos, this.withImpurity(newImpurity), 2);
+		}
+	}
+
 	@Override
 	public void onReplaced(BlockState state, World worldIn, BlockPos pos, BlockState newState, boolean isMoving) {
 		if (state.hasTileEntity()) {
@@ -52,7 +75,7 @@ public class PollutedAir extends Block {
 			}
 		}
 	}
-	
+
 	@Override
 	public boolean removedByPlayer(BlockState state, World world, BlockPos pos, PlayerEntity player,
 			boolean willHarvest, IFluidState fluid) {
@@ -69,11 +92,6 @@ public class PollutedAir extends Block {
 	@Override
 	public VoxelShape getShape(BlockState state, IBlockReader worldIn, BlockPos pos, ISelectionContext context) {
 		return VoxelShapes.empty();
-	}
-
-	@Override
-	public List<ItemStack> getDrops(BlockState state, Builder builder) {
-		return null;
 	}
 
 	@Override
@@ -135,5 +153,11 @@ public class PollutedAir extends Block {
 		return newTE;
 	}
 
-	public static Properties properties = Block.Properties.create(ModMaterials.POLLUTED_AIR).sound(SoundType.SNOW).notSolid().variableOpacity();
+	@Override
+	protected void fillStateContainer(StateContainer.Builder<Block, BlockState> builder) {
+		builder.add(IMPURITY);
+	}
+
+	public static Properties properties = Block.Properties.create(ModMaterials.POLLUTED_AIR).sound(SoundType.SNOW)
+			.notSolid().variableOpacity();
 }
