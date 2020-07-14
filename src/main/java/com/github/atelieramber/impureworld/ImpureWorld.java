@@ -3,17 +3,20 @@ package com.github.atelieramber.impureworld;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.github.atelieramber.impureworld.events.HandleChunkEvents;
 import com.github.atelieramber.impureworld.init.IWBlockRegistry;
 import com.github.atelieramber.impureworld.init.IWItemRegistry;
 import com.github.atelieramber.impureworld.lists.BlockList;
+import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.minecraft.block.Block;
-import net.minecraft.client.renderer.RenderState;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.RenderTypeLookup;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.client.renderer.vertex.VertexFormat;
 import net.minecraft.item.Item;
+import net.minecraftforge.client.event.EntityViewRenderEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegistryEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -41,6 +44,14 @@ public class ImpureWorld {
 		modEventBus.addListener(this::enqueueIMC);
 		modEventBus.addListener(this::processIMC);
 		modEventBus.addListener(this::clientSetup);
+		
+		final IEventBus forgeEventBus = MinecraftForge.EVENT_BUS;
+
+		forgeEventBus.addListener(HandleChunkEvents::load);
+		forgeEventBus.addListener(HandleChunkEvents::unload);
+		forgeEventBus.addListener(HandleChunkEvents::worldTick);
+		
+		forgeEventBus.addListener(this::removeFog);
 
 		IWBlockRegistry.registerBlockTileEntities(modEventBus);
 
@@ -48,7 +59,6 @@ public class ImpureWorld {
 	}
 
 	private void setup(final FMLCommonSetupEvent event) {
-
 	}
 
 	private void enqueueIMC(final InterModEnqueueEvent event) {
@@ -80,10 +90,20 @@ public class ImpureWorld {
 	}
 
 	@SubscribeEvent
-	public void onServerStarting(FMLServerStartingEvent event) {
+	public static void onServerStarting(FMLServerStartingEvent event) {
 
 	}
 
+    public void removeFog(final EntityViewRenderEvent.FogDensity event) {
+		Minecraft mc = Minecraft.getInstance();
+
+        final float farPlane = mc.gameSettings.renderDistanceChunks * 16.0f;
+        RenderSystem.fogStart(farPlane * 32.0f);
+        RenderSystem.fogEnd(farPlane * 32.0f);
+        event.setDensity(0.0f);
+        event.setCanceled(true);
+    }
+	
 	@SubscribeEvent
 	public static void registerBlocks(RegistryEvent.Register<Block> event) {
 		IWBlockRegistry.registerBlocks(event);
