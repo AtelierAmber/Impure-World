@@ -13,9 +13,12 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.state.IntegerProperty;
 import net.minecraft.state.StateContainer;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.ActionResultType;
 import net.minecraft.util.Direction;
+import net.minecraft.util.Hand;
 import net.minecraft.util.Rotation;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.BlockRayTraceResult;
 import net.minecraft.util.math.shapes.ISelectionContext;
 import net.minecraft.util.math.shapes.VoxelShape;
 import net.minecraft.util.math.shapes.VoxelShapes;
@@ -78,7 +81,7 @@ public class PollutedAir extends Block {
 			}
 		}
 	}
-
+	
 	@OnlyIn(Dist.CLIENT)
 	@Override
 	public boolean isSideInvisible(BlockState state, BlockState adjacentBlockState, Direction side) {
@@ -121,6 +124,7 @@ public class PollutedAir extends Block {
 		if (entityIn instanceof PlayerEntity) {
 			PlayerEntity player = ((PlayerEntity) entityIn);
 			double eyePos = player.getPosYEye();
+			world.destroyBlock(pos.offset(player.getHorizontalFacing().getOpposite(), 1), false, player);
 			BlockPos eyePosBlock = new BlockPos(player.getPosX(), eyePos, player.getPosZ());
 			if (world.getBlockState(eyePosBlock).getMaterial() == material) {
 				TileEntityPollutedAir tileEntity = (TileEntityPollutedAir) world.getTileEntity(pos);

@@ -6,6 +6,6 @@ import net.minecraft.block.material.PushReaction;
 
 public class ModMaterials{
 	
-	public static final Material POLLUTED_AIR = new Material(MaterialColor.AIR, false, false, false, false, false, false, true, PushReaction.DESTROY);
+	public static final Material POLLUTED_AIR = new Material(MaterialColor.AIR, false, false, false, false, false, true, PushReaction.DESTROY);
 	
 }

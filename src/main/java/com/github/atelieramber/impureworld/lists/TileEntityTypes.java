@@ -9,7 +9,7 @@ import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 
 public class TileEntityTypes {
-	public static final DeferredRegister<TileEntityType<?>> TILE_ENTITY_TYPES = new DeferredRegister<>(ForgeRegistries.TILE_ENTITIES, ImpureWorld.MODID);
+	public static final DeferredRegister<TileEntityType<?>> TILE_ENTITY_TYPES = DeferredRegister.create(ForgeRegistries.TILE_ENTITIES, ImpureWorld.MODID);
 	
 	public static final RegistryObject<TileEntityType<TileEntityPollutedAir>> POLLUTED_AIR = TILE_ENTITY_TYPES.register("polluted_air", 
 			() -> TileEntityType.Builder.create(TileEntityPollutedAir::new, BlockList.polluted_air).build(null));

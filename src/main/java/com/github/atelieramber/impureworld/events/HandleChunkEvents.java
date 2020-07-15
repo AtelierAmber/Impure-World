@@ -1,7 +1,9 @@
 package com.github.atelieramber.impureworld.events;
 
 import java.util.HashMap;
+import java.util.List;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -18,6 +20,9 @@ import net.minecraft.profiler.IProfiler;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
+import net.minecraft.util.palette.ArrayPalette;
+import net.minecraft.util.palette.HashMapPalette;
+import net.minecraft.util.palette.IPalette;
 import net.minecraft.util.palette.PalettedContainer;
 import net.minecraft.world.World;
 import net.minecraft.world.chunk.ChunkSection;
@@ -68,13 +73,13 @@ public class HandleChunkEvents {
 		profiler.endSection();
 	}
 
+	@SuppressWarnings("deprecation")
 	private static void tickChunks(PollutionSavedData savedData, World world, IProfiler profiler) {
 		profiler.startSection("pollutionUpdates:tick");
 		savedData.chunkTracker.tick();
 		profiler.endSection();
 		profiler.startSection("pollutionUpdates:loop");
 		ChunkPos pos;
-		int chunkCount = 0;
 		while((pos = savedData.chunkTracker.next()) != null) {
 			profiler.startSection("pollutionUpdates:loop.getChunk");
 			IChunk chunk = world.getChunk(pos.x, pos.z);
@@ -82,7 +87,6 @@ public class HandleChunkEvents {
 				profiler.endSection();
 				continue;
 			}
-			++chunkCount;
 			ChunkSection[] sections = chunk.getSections();
 			profiler.endSection();
 			profiler.startSection("pollutionUpdates:loop.sections");
@@ -95,14 +99,17 @@ public class HandleChunkEvents {
 								BlockState state = section.getBlockState(x, y, z);
 								Block block = state.getBlock();
 								ResourceLocation registryName = block.getRegistryName();
-								ImpureWorldConfig.PolluterEntry polluterEntry = ImpureWorldConfig.polluters.get(registryName);
-								if(polluterEntry != null) {
-									if(y < 15 && section.getBlockState(x, y+1, z).isAir()) {
-										BlockPos blockPos = new BlockPos(x, y + 1 + section.getYLocation(), z);
-										blockPos = pos.asBlockPos().add(blockPos);
-										System.out.println("Polluting at " + blockPos);
-										world.setBlockState(blockPos, BlockList.polluted_air.getDefaultState());
-										TileEntityPollutedAir te = (TileEntityPollutedAir) world.getTileEntity(blockPos);
+								ImpureWorldConfig.PolluterEntry polluter = ImpureWorldConfig.polluters.get(registryName);
+								if(polluter != null) {
+									if(y < 15 ) {
+										if(section.getBlockState(x, y+1, z).isAir()) {
+											BlockPos blockPos = new BlockPos(x, y + 1 + section.getYLocation(), z);
+											blockPos = pos.asBlockPos().add(blockPos);
+											System.out.println("Polluting at " + blockPos);
+											world.setBlockState(blockPos, BlockList.polluted_air.getDefaultState());
+											TileEntityPollutedAir te = (TileEntityPollutedAir) world.getTileEntity(blockPos);
+											te.setComposition(polluter.carbon, polluter.sulfur, polluter.particulate);
+										}
 									}
 								}
 							}
@@ -113,19 +120,20 @@ public class HandleChunkEvents {
 			profiler.endSection();
 		}
 		profiler.endSection();
-		//System.out.println("Chunks ticked: " + chunkCount + "/" + savedData.chunkTracker.size());
 	}
 	
 	private static boolean sectionHasPolluter(ChunkSection section, HashMap<ResourceLocation, PolluterEntry> polluters) {
 		PalettedContainer<BlockState> data = section.getData();
+		IPalette<BlockState> palette = data.palette;
 		for(PolluterEntry p : polluters.values()){
 			switch(p.type) {
 			case BLOCK:
-				Block block = p.<Block>getRegistry();
-				if(data.contains(block.getDefaultState())) {
-					return true;
+				List<BlockState> states = p.getBlockStates();
+				for(BlockState state : states) {
+					if(paletteContains(palette, state)) {
+						return true;
+					}
 				}
-				break;
 			case ENTITY:
 			case ITEM:
 			default:
@@ -134,4 +142,16 @@ public class HandleChunkEvents {
 		}
 		return false;
 	}
+	
+	private static <T> boolean paletteContains(IPalette<T> palette, T value) {
+		if(palette instanceof ArrayPalette) {
+			ArrayPalette<T> newPalette = (ArrayPalette<T>) palette;
+			return ArrayUtils.contains(newPalette.states, value);
+		} else if(palette instanceof HashMapPalette) {
+			HashMapPalette<T> newPalette = (HashMapPalette<T>) palette;
+		      return newPalette.statePaletteMap.getId(value) != -1;
+		}
+		return true;
+	}
+	
 }

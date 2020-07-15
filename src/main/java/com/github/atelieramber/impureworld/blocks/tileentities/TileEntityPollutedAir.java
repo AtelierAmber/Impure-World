@@ -235,7 +235,7 @@ public class TileEntityPollutedAir extends TileEntity implements ITickableTileEn
 				if (world.rand != null) {
 					spreadFrequency = 20 + world.rand.nextInt(64);
 				} else {
-					Random random = new Random(world.getSeed());
+					Random random = new Random();
 					spreadFrequency = 20 + random.nextInt(64);
 				}
 			} else {
@@ -384,9 +384,13 @@ public class TileEntityPollutedAir extends TileEntity implements ITickableTileEn
 	}
 
 	@Override
-	public void read(CompoundNBT nbt) {
-		super.read(nbt);
-
+	public void read(BlockState state, CompoundNBT nbt) {
+		super.read(state, nbt);
+		
+		readToNBT(nbt);
+	}
+	
+	private void readToNBT(CompoundNBT nbt) {
 		this.airComposition.clean = nbt.getFloat("clean");
 		this.airComposition.carbon = nbt.getDouble("carbon");
 		this.airComposition.sulfur = nbt.getDouble("sulfur");
@@ -404,7 +408,7 @@ public class TileEntityPollutedAir extends TileEntity implements ITickableTileEn
 	}
 	@Override
 	public void onDataPacket(NetworkManager net, SUpdateTileEntityPacket pkt) {
-		read(pkt.getNbtCompound());
+		readToNBT(pkt.getNbtCompound());
 	}
 
 	@Override
@@ -412,10 +416,10 @@ public class TileEntityPollutedAir extends TileEntity implements ITickableTileEn
 		return this.write(new CompoundNBT());
 	}
 	@Override
-	public void handleUpdateTag(CompoundNBT tag) {
-		deserializeNBT(tag);
+	public void handleUpdateTag(BlockState state, CompoundNBT tag) {
+		read(state, tag);
 	}
-
+	
 	@Override
 	public CompoundNBT getTileData() {
 		return getUpdateTag();

@@ -3,6 +3,7 @@ package com.github.atelieramber.impureworld;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.github.atelieramber.impureworld.config.ImpureWorldConfig;
 import com.github.atelieramber.impureworld.events.HandleChunkEvents;
 import com.github.atelieramber.impureworld.init.IWBlockRegistry;
 import com.github.atelieramber.impureworld.init.IWItemRegistry;
@@ -21,7 +22,9 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegistryEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.InterModEnqueueEvent;
@@ -53,6 +56,8 @@ public class ImpureWorld {
 		
 		forgeEventBus.addListener(this::removeFog);
 
+		ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, ImpureWorldConfig.SPEC);
+		
 		IWBlockRegistry.registerBlockTileEntities(modEventBus);
 
 		MinecraftForge.EVENT_BUS.register(this);
