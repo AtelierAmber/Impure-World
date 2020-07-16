@@ -66,7 +66,7 @@ public class PollutedAir extends Block {
 		int oldImpurity = getImpurity(state);
 		int newImpurity = Math.round(impurity * 10.0f);
 		if (oldImpurity != newImpurity && newImpurity < 11) {
-			System.out.println("Updated Impurity: " + impurity + ":" + newImpurity);
+			//System.out.println("Updated Impurity: " + impurity + ":" + newImpurity);
 			world.setBlockState(pos, this.withImpurity(newImpurity), 2);
 		}
 	}
@@ -158,6 +158,6 @@ public class PollutedAir extends Block {
 		builder.add(IMPURITY);
 	}
 
-	public static Properties properties = Block.Properties.create(ModMaterials.POLLUTED_AIR).sound(SoundType.SNOW)
+	public static Properties properties = Block.Properties.create(ModMaterials.POLLUTED_AIR).sound(null)
 			.notSolid().variableOpacity();
 }

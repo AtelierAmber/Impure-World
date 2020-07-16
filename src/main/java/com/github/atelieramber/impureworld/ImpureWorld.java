@@ -1,24 +1,28 @@
 package com.github.atelieramber.impureworld;
 
+import java.util.Map;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.github.atelieramber.impureworld.config.ImpureWorldConfig;
+import com.github.atelieramber.impureworld.config.PolluterEntry;
 import com.github.atelieramber.impureworld.events.HandleChunkEvents;
 import com.github.atelieramber.impureworld.init.IWBlockRegistry;
 import com.github.atelieramber.impureworld.init.IWItemRegistry;
 import com.github.atelieramber.impureworld.lists.BlockList;
+import com.github.atelieramber.impureworld.util.JsonDataManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.minecraft.block.Block;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.RenderTypeLookup;
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
-import net.minecraft.client.renderer.vertex.VertexFormat;
 import net.minecraft.item.Item;
+import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.client.event.EntityViewRenderEvent;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.event.RegistryEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -41,18 +45,26 @@ public class ImpureWorld {
 
 	protected static final Logger LOGGER = LogManager.getLogger(MODID);
 
+	JsonDataManager dataManager;
+	
+	private static ImpureWorld instance;
+	
 	public ImpureWorld() {
+		instance = this;
+		
 		final IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
 		modEventBus.addListener(this::setup);
 		modEventBus.addListener(this::enqueueIMC);
 		modEventBus.addListener(this::processIMC);
 		modEventBus.addListener(this::clientSetup);
+		modEventBus.addListener(this::onServerStarting);
 		
 		final IEventBus forgeEventBus = MinecraftForge.EVENT_BUS;
 
 		forgeEventBus.addListener(HandleChunkEvents::load);
 		forgeEventBus.addListener(HandleChunkEvents::unload);
 		forgeEventBus.addListener(HandleChunkEvents::worldTick);
+		forgeEventBus.addListener(this::onDataPackReload);
 		
 		forgeEventBus.addListener(this::removeFog);
 
@@ -63,6 +75,14 @@ public class ImpureWorld {
 		MinecraftForge.EVENT_BUS.register(this);
 	}
 
+	public static ImpureWorld Instance() {
+		return instance;
+	}
+	
+	public static final Map<ResourceLocation, PolluterEntry> polluters(){
+		return instance.dataManager.getPolluters();
+	}
+	
 	private void setup(final FMLCommonSetupEvent event) {
 	}
 
@@ -74,29 +94,18 @@ public class ImpureWorld {
 
 	}
 
-	public static class CustomRenderType extends RenderType {
-
-		public static final RenderType BOUNDLESS_TRANSLUCENT = makeType("boundless_translucent", DefaultVertexFormats.BLOCK, 7, 262144,
-				true, true, getBoundlessTranslucentState());
-
-		private static RenderType.State getBoundlessTranslucentState() {
-			return RenderType.State.getBuilder().shadeModel(SHADE_ENABLED).lightmap(LIGHTMAP_ENABLED)
-					.texture(BLOCK_SHEET_MIPPED).transparency(TRANSLUCENT_TRANSPARENCY).alpha(DEFAULT_ALPHA).build(true);
-		}
-
-		public CustomRenderType(String nameIn, VertexFormat formatIn, int drawModeIn, int bufferSizeIn, boolean useDelegateIn, boolean needsSortingIn, Runnable setupTaskIn, Runnable clearTaskIn) {
-			super(nameIn, formatIn, drawModeIn, bufferSizeIn, useDelegateIn, needsSortingIn, setupTaskIn, clearTaskIn);
-		}
-
-	}
-
 	private void clientSetup(final FMLClientSetupEvent event) {
 		RenderTypeLookup.setRenderLayer(BlockList.polluted_air, RenderType.getTranslucent());
 	}
 
-	@SubscribeEvent
-	public static void onServerStarting(FMLServerStartingEvent event) {
-
+	public void onServerStarting(FMLServerStartingEvent event) {
+		
+	}
+	
+	public void onDataPackReload(final AddReloadListenerEvent event) {
+		dataManager = new JsonDataManager();
+		event.addListener(dataManager);
+		System.out.println("Registered Data loader.");
 	}
 
     public void removeFog(final EntityViewRenderEvent.FogDensity event) {

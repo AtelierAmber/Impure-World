@@ -8,20 +8,24 @@ import java.util.Map;
 import java.util.Random;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
+import com.github.atelieramber.impureworld.ImpureWorld;
 import com.github.atelieramber.impureworld.blocks.PollutedAir;
 import com.github.atelieramber.impureworld.lists.TileEntityTypes;
 import com.github.atelieramber.impureworld.materials.ModMaterials;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.math.DoubleMath;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.material.Material;
+import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundNBT;
 import net.minecraft.network.NetworkManager;
 import net.minecraft.network.play.server.SUpdateTileEntityPacket;
+import net.minecraft.profiler.IProfiler;
 import net.minecraft.tileentity.ITickableTileEntity;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.tileentity.TileEntityType;
@@ -30,6 +34,9 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 public class TileEntityPollutedAir extends TileEntity implements ITickableTileEntity {
+	protected static final Logger LOGGER = LogManager.getLogger(ImpureWorld.MODID);
+	protected IProfiler profiler;
+	
 	private class AirComposition {
 		private float clean = 1.0f;
 		private double carbon = 0.0;
@@ -150,6 +157,8 @@ public class TileEntityPollutedAir extends TileEntity implements ITickableTileEn
 	
 	private boolean initialized = true;
 
+	private static int MIN_TICK_FREQUENCY = 40;
+	private static int MAX_ADDITIONAL_TICK_FREQUENCY = 64;
 	private int spreadFrequency = 0;
 	private int spreadTimer = 0;
 
@@ -203,10 +212,15 @@ public class TileEntityPollutedAir extends TileEntity implements ITickableTileEn
 			init();
 			initialized = true;
 		}
-		if (!world.isAreaLoaded(pos, 2))
+		if(profiler == null) {
+			profiler = world.getProfiler();
+		}
+		profiler.startSection("polluted_air:TE");
+		if (!world.isAreaLoaded(pos, 1))
 			return;
 		++spreadTimer;
 		if (spreadTimer >= getSpreadFrequency()) {
+			profiler.startSection("polluted_air:TE.spread");
 			if (neighborUpdated) {
 				List<Pair<Direction, Spreadability>> spreadDirections = getSpreadDirs();
 				if (spreadDirections.size() > 0) {
@@ -217,69 +231,74 @@ public class TileEntityPollutedAir extends TileEntity implements ITickableTileEn
 
 				neighborUpdated = false;
 			}
+			profiler.endStartSection("polluted_air:TE.update");
 			/* Composition update */
 			updateComposition();
+			profiler.endStartSection("polluted_air:update");
 			markDirty();
 			((PollutedAir)(getBlockState().getBlock())).updateImpurity(world, pos, getBlockState(), getImpurity());
 			spreadTimer = 0;
+			profiler.endSection();
 		}
+		profiler.endSection();
 	}
 	
 	private void init() {
-		((PollutedAir)(getBlockState().getBlock())).updateImpurity(world, pos, getBlockState(), getImpurity());		
+		((PollutedAir)(getBlockState().getBlock())).updateImpurity(world, pos, getBlockState(), getImpurity());
+		profiler = world.getProfiler();
 	}
 
 	private int getSpreadFrequency() {
 		if (spreadFrequency == 0) {
 			if (world != null) {
 				if (world.rand != null) {
-					spreadFrequency = 20 + world.rand.nextInt(64);
+					spreadFrequency = MIN_TICK_FREQUENCY + world.rand.nextInt(MAX_ADDITIONAL_TICK_FREQUENCY);
 				} else {
 					Random random = new Random();
-					spreadFrequency = 20 + random.nextInt(64);
+					spreadFrequency = MIN_TICK_FREQUENCY + random.nextInt(MAX_ADDITIONAL_TICK_FREQUENCY);
 				}
 			} else {
-				spreadFrequency = 20;
+				spreadFrequency = MIN_TICK_FREQUENCY;
 			}
 		}
 		return spreadFrequency;
 	}
 
+	private class EmissionMergeData{
+		public double carbon = 0.0;
+		public double sulfur = 0.0;
+		public double particulate = 0.0;
+		public int totalDirs = 0;
+		TileEntityPollutedAir lastInstance;
+	}
+	
 	private void updateComposition() {
-		List<Direction> mergeDirs = getMergeDirs();
-		double carbonTotal = 0.0f;
-		double sulfurTotal = 0.0f;
-		double particulateTotal = 0.0f;
+		EmissionMergeData mergeData = getMergeTotals();
 
-		if (mergeDirs.size() > 1) {
-			for (int i = 0; i < mergeDirs.size(); ++i) {
-				BlockPos offset = pos.offset(mergeDirs.get(i));
-				BlockState state = world.getBlockState(offset);
-				if (state.getMaterial() == ModMaterials.POLLUTED_AIR) {
-					TileEntityPollutedAir te = (TileEntityPollutedAir) world.getTileEntity(offset);
+		if (mergeData.totalDirs > 1) {
+			airComposition.polluteDxDt(mergeData.carbon / mergeData.totalDirs, mergeData.sulfur / mergeData.totalDirs,
+					mergeData.particulate / mergeData.totalDirs, .25);
+		} else if (mergeData.totalDirs > 0) {
+			airComposition.setComposition(mergeData.carbon / 2.0, mergeData.sulfur / 2.0, mergeData.particulate / 2.0);
+			mergeData.lastInstance.airComposition.setComposition(airComposition);
+		}
+	}
 
-					carbonTotal += te.airComposition.carbon;
-					sulfurTotal += te.airComposition.sulfur;
-					particulateTotal += te.airComposition.particulate;
-				}
-			}
-
-			airComposition.polluteDxDt(carbonTotal / (double) mergeDirs.size(), sulfurTotal / (double) mergeDirs.size(),
-					particulateTotal / (double) mergeDirs.size(), .25);
-		} else if (mergeDirs.size() > 0) {
-			BlockPos offset = pos.offset(mergeDirs.get(0));
-			BlockState state = world.getBlockState(offset);
-			if (state.getMaterial() == ModMaterials.POLLUTED_AIR) {
-				TileEntityPollutedAir te = (TileEntityPollutedAir) world.getTileEntity(offset);
-
-				carbonTotal = airComposition.carbon + te.airComposition.carbon;
-				sulfurTotal = airComposition.sulfur + te.airComposition.sulfur;
-				particulateTotal = airComposition.particulate + te.airComposition.particulate;
-
-				airComposition.setComposition(carbonTotal / 2.0, sulfurTotal / 2.0, particulateTotal / 2.0);
-				te.airComposition.setComposition(airComposition);
+	private EmissionMergeData getMergeTotals() {
+		EmissionMergeData neighborData = new EmissionMergeData();
+		for (int i = 0; i < SIDES.size(); ++i) {
+			BlockPos offset = pos.offset(SIDES.get(i));
+			TileEntity te = world.getTileEntity(offset);
+			if (te != null && te instanceof TileEntityPollutedAir) {
+				TileEntityPollutedAir air = (TileEntityPollutedAir)te;
+				neighborData.carbon += air.airComposition.carbon;
+				neighborData.sulfur += air.airComposition.sulfur;
+				neighborData.particulate += air.airComposition.particulate;
+				++neighborData.totalDirs;
+				neighborData.lastInstance = air;
 			}
 		}
+		return neighborData;
 	}
 
 	//TODO: Cache spread directions
@@ -294,18 +313,7 @@ public class TileEntityPollutedAir extends TileEntity implements ITickableTileEn
 		}
 		return spreadDirections;
 	}
-
-	private List<Direction> getMergeDirs() {
-		List<Direction> mergeDirections = new ArrayList<Direction>();
-		for (int i = 0; i < SIDES.size(); ++i) {
-			BlockPos offset = pos.offset(SIDES.get(i));
-			if (world.getBlockState(offset).getMaterial() == ModMaterials.POLLUTED_AIR) {
-				mergeDirections.add(SIDES.get(i));
-			}
-		}
-		return mergeDirections;
-	}
-
+	
 	private float spreadToSides(List<Pair<Direction, Spreadability>> sides) {
 		if (airComposition.purity() < .95f) {
 			float spreadPerBlock = 1.0f / (float) (sides.size() + 1);
@@ -344,6 +352,10 @@ public class TileEntityPollutedAir extends TileEntity implements ITickableTileEn
 		}
 		return true;
 	}
+	private Spreadability canSpreadTo(BlockPos blockPos) {
+		Block blockAt = world.getBlockState(blockPos).getBlock();
+		return SPREADABLE_BLOCKS.getOrDefault(blockAt, Spreadability.NONE);
+	}
 
 	public void onNeighborStateUpdated(BlockPos neighbor) {
 		neighborUpdated = true;
@@ -356,10 +368,6 @@ public class TileEntityPollutedAir extends TileEntity implements ITickableTileEn
 		return 1.0f-airComposition.purity();
 	}
 
-	private Spreadability canSpreadTo(BlockPos blockPos) {
-		Block blockAt = world.getBlockState(blockPos).getBlock();
-		return SPREADABLE_BLOCKS.getOrDefault(blockAt, Spreadability.NONE);
-	}
 
 	@Override
 	public String toString() {
@@ -371,15 +379,12 @@ public class TileEntityPollutedAir extends TileEntity implements ITickableTileEn
 	/* Handle Server NBT Updates */
 	@Override
 	public CompoundNBT write(CompoundNBT nbt) {
-		nbt.putFloat("clean", this.airComposition.clean);
 		nbt.putDouble("carbon", this.airComposition.carbon);
 		nbt.putDouble("sulfur", this.airComposition.sulfur);
 		nbt.putDouble("particulate", this.airComposition.particulate);
 
 		nbt.putInt("spreadFrequency", this.spreadFrequency);
 		nbt.putInt("spreadTimer", this.spreadTimer);
-
-		nbt.putBoolean("neighborUpdated", this.neighborUpdated);
 		return super.write(nbt);
 	}
 
@@ -391,15 +396,15 @@ public class TileEntityPollutedAir extends TileEntity implements ITickableTileEn
 	}
 	
 	private void readToNBT(CompoundNBT nbt) {
-		this.airComposition.clean = nbt.getFloat("clean");
 		this.airComposition.carbon = nbt.getDouble("carbon");
 		this.airComposition.sulfur = nbt.getDouble("sulfur");
 		this.airComposition.particulate = nbt.getDouble("particulate");
+		this.airComposition.rebalance();
 
 		this.spreadFrequency = nbt.getInt("spreadFrequency");
 		this.spreadTimer = nbt.getInt("spreadTimer");
-
-		this.neighborUpdated = nbt.getBoolean("neighborUpdated");
+		
+		this.neighborUpdated = true;
 	}
 	
 	@Override

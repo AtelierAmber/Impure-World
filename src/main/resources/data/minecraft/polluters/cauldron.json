@@ -1,0 +1,23 @@
+{
+	"registryName": "minecraft:cauldron",
+	"direction": "top",
+	"emissions": 
+	{
+		"carbon": 0.3,
+		"sulfur": 0.3,
+		"particulate": 0.3
+	},
+	"frequency": 1.0,
+	"type": "block",
+	"extras": 
+	[
+	],
+	"properties": 
+	[
+		{
+			"name": "level",
+			"value": "1",
+			"handling": "accept"
+		}
+	]
+}

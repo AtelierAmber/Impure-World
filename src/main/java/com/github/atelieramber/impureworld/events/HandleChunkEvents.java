@@ -1,7 +1,7 @@
 package com.github.atelieramber.impureworld.events;
 
-import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.logging.log4j.LogManager;
@@ -9,8 +9,7 @@ import org.apache.logging.log4j.Logger;
 
 import com.github.atelieramber.impureworld.ImpureWorld;
 import com.github.atelieramber.impureworld.blocks.tileentities.TileEntityPollutedAir;
-import com.github.atelieramber.impureworld.config.ImpureWorldConfig;
-import com.github.atelieramber.impureworld.config.ImpureWorldConfig.PolluterEntry;
+import com.github.atelieramber.impureworld.config.PolluterEntry;
 import com.github.atelieramber.impureworld.lists.BlockList;
 import com.github.atelieramber.impureworld.world.PollutionSavedData;
 
@@ -92,20 +91,20 @@ public class HandleChunkEvents {
 			profiler.startSection("pollutionUpdates:loop.sections");
 			for(int i = 0; i < sections.length; ++i) {
 				ChunkSection section = sections[i];
-				if(section != null && !section.isEmpty() && sectionHasPolluter(section, ImpureWorldConfig.polluters)) {
+				if(section != null && !section.isEmpty() && sectionHasPolluter(section, ImpureWorld.polluters())) {
 					for(int x = 0; x < 16; ++x) {
 						for(int y = 0; y < 16; ++y) {
 							for(int z = 0; z < 16; ++z) {
 								BlockState state = section.getBlockState(x, y, z);
 								Block block = state.getBlock();
 								ResourceLocation registryName = block.getRegistryName();
-								ImpureWorldConfig.PolluterEntry polluter = ImpureWorldConfig.polluters.get(registryName);
-								if(polluter != null) {
+								PolluterEntry polluter = ImpureWorld.polluters().get(registryName);
+								if(polluter != null && polluter.getBlockStates().contains(state)) {
 									if(y < 15 ) {
 										if(section.getBlockState(x, y+1, z).isAir()) {
 											BlockPos blockPos = new BlockPos(x, y + 1 + section.getYLocation(), z);
 											blockPos = pos.asBlockPos().add(blockPos);
-											System.out.println("Polluting at " + blockPos);
+											//System.out.println("Polluting at " + blockPos);
 											world.setBlockState(blockPos, BlockList.polluted_air.getDefaultState());
 											TileEntityPollutedAir te = (TileEntityPollutedAir) world.getTileEntity(blockPos);
 											te.setComposition(polluter.carbon, polluter.sulfur, polluter.particulate);
@@ -122,7 +121,7 @@ public class HandleChunkEvents {
 		profiler.endSection();
 	}
 	
-	private static boolean sectionHasPolluter(ChunkSection section, HashMap<ResourceLocation, PolluterEntry> polluters) {
+	private static boolean sectionHasPolluter(ChunkSection section, Map<ResourceLocation, PolluterEntry> polluters) {
 		PalettedContainer<BlockState> data = section.getData();
 		IPalette<BlockState> palette = data.palette;
 		for(PolluterEntry p : polluters.values()){
